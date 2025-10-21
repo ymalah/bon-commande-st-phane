@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Bon de Commande VTC</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body {
+      font-family: 'Montserrat', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(to right, #1f1f1f, #3a3a3a);
+      color: #fff;
+    }
+    .container {
+      max-width: 600px;
+      margin: 30px auto;
+      background-color: #222;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    }
+    h1 {
+      text-align: center;
+      color: #ffd700;
+      margin-bottom: 30px;
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: 600;
+      color: #ccc;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      margin-top: 5px;
+      background: #333;
+      color: #fff;
+    }
+    .btn {
+      background-color: #ffd700;
+      color: #000;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      width: 100%;
+      font-weight: bold;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+    .btn:hover {
+      background-color: #e6c200;
+    }
+    .facture {
+      background: #fff;
+      color: #000;
+      padding: 20px;
+      margin-top: 30px;
+      border-radius: 10px;
+      text-align: justify;
+      white-space: pre-line;
+    }
+    .input-wrapper {
+      position: relative;
+    }
+    ul.suggestions {
+      position: absolute;
+      background: #333;
+      color: #fff;
+      border: 1px solid #555;
+      list-style: none;
+      padding: 0;
+      max-height: 120px;
+      overflow-y: auto;
+      margin: 0;
+      width: 100%;
+      border-radius: 0 0 8px 8px;
+      z-index: 10;
+    }
+    ul.suggestions li {
+      padding: 10px;
+      cursor: pointer;
+    }
+    ul.suggestions li:hover {
+      background: #444;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Bon de Commande VTC</h1>
+
+  <form id="commandeForm" autocomplete="off">
+    <div class="input-wrapper">
+      <label>Adresse de départ</label>
+      <input type="text" id="depart" required>
+      <ul id="suggestions-depart" class="suggestions" style="display:none;"></ul>
+    </div>
+
+    <div class="input-wrapper">
+      <label>Adresse d’arrivée</label>
+      <input type="text" id="arrivee" required>
+      <ul id="suggestions-arrivee" class="suggestions" style="display:none;"></ul>
+    </div>
+
+    <label>Date de la course</label>
+    <input type="date" id="dateCourse" required>
+
+    <label>Heure</label>
+    <input type="time" id="heure" required>
+
+    <label>Nombre de passagers</label>
+    <input type="number" id="passagers" required min="1">
+
+    <label>Nombre de bagages</label>
+    <input type="number" id="bagages" required min="0">
+
+    <label>Montant TTC (€)</label>
+    <input type="number" id="prix" required min="0">
+
+    <label>Mode de paiement</label>
+    <select id="paiement">
+      <option value="CB">CB</option>
+      <option value="Espèces">Espèces</option>
+      <option value="Virement">Virement</option>
+    </select>
+
+    <button type="submit" class="btn">Générer le bon de commande</button>
+  </form>
+
+  <div id="facture" class="facture" style="display:none;">
+    <h2>BON DE COMMANDE</h2>
+    <p id="texteFacture"></p>
+    <button onclick="copierTexte()" class="btn">📋 Copier le texte</button>
+    <button onclick="telechargerPDF()" class="btn">⬇️ Télécharger en PDF</button>
+  </div>
+</div>
+
+<script>
+  const adresses = [
+    "Gare Viotte, Besançon", "Gare TGV Franche-Comté", "Aéroport Dole-Jura",
+    "Hôpital Jean Minjoz", "Polyclinique de Franche-Comté", "Centre-ville de Besançon",
+    "Place du 8 Septembre", "Zone Témis", "Micropolis", "Citadelle de Besançon",
+    "Centre Commercial Châteaufarine", "Université de Franche-Comté", "Hôtel Victor Hugo",
+    "Fort de Bregille", "Monument de la Libération", "Chapelle des Buis", "Malcombe",
+    "Saint-Ferjeux", "CHU Saint-Jacques", "Centre Hospitalier de Novillars",
+    "Rue de Vesoul", "Boulevard Blum", "Palente", "Planoise", "La Bouloie",
+    "Saint-Claude", "Battant"
+  ];
+
+  function autocomplete(inputId, suggestionId) {
+    const input = document.getElementById(inputId);
+    const suggestionBox = document.getElementById(suggestionId);
+
+    input.addEventListener("input", function() {
+      const value = this.value.toLowerCase();
+      suggestionBox.innerHTML = '';
+      if (value) {
+        const filtered = adresses.filter(addr => addr.toLowerCase().includes(value));
+        filtered.forEach(addr => {
+          const li = document.createElement('li');
+          li.textContent = addr;
+          li.onclick = () => {
+            input.value = addr;
+            suggestionBox.style.display = "none";
+          };
+          suggestionBox.appendChild(li);
+        });
+        suggestionBox.style.display = "block";
+      } else {
+        suggestionBox.style.display = "none";
+      }
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!input.contains(e.target) && !suggestionBox.contains(e.target)) {
+        suggestionBox.style.display = 'none';
+      }
+    });
+  }
+
+  autocomplete("depart", "suggestions-depart");
+  autocomplete("arrivee", "suggestions-arrivee");
+
+  document.getElementById("commandeForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+    const depart = document.getElementById("depart").value;
+    const arrivee = document.getElementById("arrivee").value;
+    const date = document.getElementById("dateCourse").value;
+    const heure = document.getElementById("heure").value;
+    const passagers = document.getElementById("passagers").value;
+    const bagages = document.getElementById("bagages").value;
+    const prix = document.getElementById("prix").value;
+    const paiement = document.getElementById("paiement").value;
+
+    const texte = `BON DE COMMANDE\n\nAdresse de départ : ${depart}\nAdresse d'arrivée : ${arrivee}\nDate de la course : ${date}\nHeure de la course : ${heure}\nNombre de passagers : ${passagers}\nNombre de bagages : ${bagages}\nMontant TTC : ${prix} €\nMode de paiement : ${paiement}\n\nCette réservation a été effectuée préalablement à la prestation conformément à l'article R3120-2 du Code des Transports et à l'arrêté du 30 juillet 2013 relatif aux activités de VTC.\n\nChauffeur VTC\nChauffeur : CHERCHEL STEPHANE\nVéhicule : BYD Seal U - Plaque : HA-888-TD`;
+
+    document.getElementById("texteFacture").innerText = texte.trim();
+    document.getElementById("facture").style.display = "block";
+    window.scrollTo(0, document.body.scrollHeight);
+  });
+
+  function copierTexte() {
+    const texte = document.getElementById("texteFacture").innerText;
+    navigator.clipboard.writeText(texte).then(() => {
+      alert("Texte copié !");
+    });
+  }
+
+  function telechargerPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const texte = document.getElementById("texteFacture").innerText;
+    const lignes = doc.splitTextToSize(texte, 180);
+    doc.text(lignes, 15, 20);
+    doc.save("bon_commande_vtc.pdf");
+  }
+</script>
+
+</body>
+</html>
